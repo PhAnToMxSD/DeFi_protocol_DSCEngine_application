@@ -8,6 +8,8 @@ import {ERC20Mock} from "test/Mocks/ERC20Mock.sol";
 contract HelperConfig is Script {
     NetworkConfig public activeNetworkConfig;
 
+    uint256 public constant DEFAULT_ANVIL_PRIVATE_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+
     struct NetworkConfig {
         address wethPriceFeed;
         address wbtcPriceFeed;
@@ -34,7 +36,7 @@ contract HelperConfig is Script {
         });
     }
 
-    function getAnvilEthConfig() public view returns (NetworkConfig memory anvilNetworkConfig) {
+    function getAnvilEthConfig() public returns (NetworkConfig memory anvilNetworkConfig) {
         vm.startBroadcast();
         MockV3Aggregator ethUsdPriceFeed = new MockV3Aggregator(8, 2000);
         ERC20Mock wethMock = new ERC20Mock("WETH", "WETH", msg.sender, 1000e8);

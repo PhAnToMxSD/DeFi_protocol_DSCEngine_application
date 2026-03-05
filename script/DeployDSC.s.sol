@@ -18,12 +18,17 @@ contract DeployDSC is Script {
     function run() public returns (DSC dsc, DeCoin deCoin) {
         HelperConfig helperConfig = new HelperConfig();
 
-        NetworkConfig memory activeNetworkConfig = helperConfig.activeNetworkConfig;
-        address[] memory tokenCollateral = [activeNetworkConfig.weth, activeNetworkConfig.wbtc];
-        address[] memory priceFeeds = [activeNetworkConfig.wethPriceFeed, activeNetworkConfig.wbtcPriceFeed];
-        vm.startBroadcast(activeNetworkConfig.key);
+        (address wethPriceFeed, address wbtcPriceFeed, address weth, address wbtc, uint256 key) =
+        helperConfig.activeNetworkConfig();
+        address[] memory tokenCollateral = new address[](2);
+        tokenCollateral[0] = weth;
+        tokenCollateral[1] = wbtc;
+        address[] memory priceFeeds = new address[](2);
+        priceFeeds[0] = wethPriceFeed;
+        priceFeeds[1] = wbtcPriceFeed;
+        vm.startBroadcast(key);
         deCoin = new DeCoin();
-        dsc = new DSC(tokenCollateral, priceFeeds, address(deCoin));
+        dsc = new DSC(address[](tokenCollateral), address[](priceFeeds), deCoin);
         vm.stopBroadcast();
         return (dsc, deCoin);
     }

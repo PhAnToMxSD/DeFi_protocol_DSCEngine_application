@@ -76,6 +76,16 @@ contract DSC is ReentrancyGuard {
         }
     }
 
+    function depositCollateralAndMint(address tokenCollateral, uint256 collateralAmount, uint256 mintAmount) external {
+        //Note- this function allows users to deposit collateral and mint DSC tokens in a single transaction. It first calls the depositCollateral function to handle the collateral deposit and then calls the mint function to mint the specified amount of DSC tokens for the user.
+        bytes memory payload = abi.encodeWithSelector(this.depositCollateral.selector, tokenCollateral, collateralAmount);
+        (bool success, ) = address(this).call(payload);
+        if (!success) {
+            revert DSC__transferFailed();
+        }
+        mint(mintAmount);
+    }
+
     function mint(uint256 amount) public moreThanZero(amount) nonReentrant {
         //Note- this function mints the user the amount of tokes the user needs based on the health factor of the user, ie minting will happen only if the total DSC tokens the user will own after this mint does not make the user overcollaterzied
         amountOfDSCheld[msg.sender] += amount;
