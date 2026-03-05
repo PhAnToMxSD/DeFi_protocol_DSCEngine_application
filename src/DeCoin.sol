@@ -16,25 +16,21 @@ contract DeCoin is ERC20, ERC20Burnable {
     error DeCoin__MintAmountMustBeGreaterThanZero();
     error DeCoin__NoMintToZeroAddress();
 
+    constructor() ERC20("DeCoin", "DECOIN") {}
 
-    constructor() ERC20("DeCoin", "DECOIN") {
-    }
-
-    function burn (uint256 amount) public override {
+    function burn(uint256 amount) public override{
         if (amount > balanceOf(msg.sender)) {
             revert DeCoin__BurnAmountExceedsLimit();
-        }
-        else if (amount <= 0) {
+        } else if (amount <= 0) {
             revert DeCoin__BurnAmountMustBeGreaterThanZero();
         }
         super.burn(amount);
     }
 
-    function mint (address to, uint256 amount) public {
+    function mint(address to, uint256 amount) public {
         if (to == address(0)) {
             revert DeCoin__NoMintToZeroAddress();
-        }
-        else if (amount <= 0) {
+        } else if (amount <= 0) {
             revert DeCoin__MintAmountMustBeGreaterThanZero();
         }
         _mint(to, amount);
