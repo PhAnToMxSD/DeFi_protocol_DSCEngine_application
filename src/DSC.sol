@@ -35,7 +35,7 @@ contract DSC is ReentrancyGuard {
     mapping(address user => uint256 dsc_held) private amountOfDSCheld;
     address[] private s_tokenAddresses;
     address private immutable deCoin;
-    uint256 private constant LIQUIDATION_THRESHOLD = 50; 
+    uint256 private constant LIQUIDATION_THRESHOLD = 50;
 
     constructor(address[] memory tokenCollateral, address[] memory priceFeeds, DeCoin _deCoin) {
         if (tokenCollateral.length != priceFeeds.length) {
@@ -99,15 +99,15 @@ contract DSC is ReentrancyGuard {
         return (uint256(price * 1e10) * amount) / 1e18;
     }
 
-    function _getHealthFactor(uint256 totalCol) private view returns(uint256) {
+    function _getHealthFactor(uint256 totalCol) private view returns (uint256) {
         uint256 xyz;
-        xyz = ((totalCol * LIQUIDATION_THRESHOLD)/100)*1e18/ amountOfDSCheld[msg.sender];
+        xyz = ((totalCol * LIQUIDATION_THRESHOLD) / 100) * 1e18 / amountOfDSCheld[msg.sender];
         return xyz;
     }
 
-    function _checkHealthFactor (address user) internal view returns(bool) {
+    function _checkHealthFactor(address user) internal view returns (bool) {
         uint256 totalCol = getUserCollateral(user);
-        if ( _getHealthFactor(totalCol) < 1) {
+        if (_getHealthFactor(totalCol) < 1) {
             revert DSC__HealthFactorBelowThreshold();
         }
         return true;

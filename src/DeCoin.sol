@@ -18,7 +18,7 @@ contract DeCoin is ERC20, ERC20Burnable {
 
     constructor() ERC20("DeCoin", "DECOIN") {}
 
-    function burn(uint256 amount) public override{
+    function burn(uint256 amount) public override {
         if (amount > balanceOf(msg.sender)) {
             revert DeCoin__BurnAmountExceedsLimit();
         } else if (amount <= 0) {
