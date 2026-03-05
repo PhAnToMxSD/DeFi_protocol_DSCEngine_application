@@ -22,7 +22,7 @@ contract DeployDSC is Script {
         NetworkConfig memory activeNetworkConfig = helperConfig.activeNetworkConfig;
         address[] memory tokenCollateral = [activeNetworkConfig.weth, activeNetworkConfig.wbtc];
         address[] memory priceFeeds = [activeNetworkConfig.wethPriceFeed, activeNetworkConfig.wbtcPriceFeed];
-        vm.startBroadcast();
+        vm.startBroadcast(activeNetworkConfig.key);
         deCoin = new DeCoin();
         dsc = new DSC(tokenCollateral, priceFeeds, address(deCoin));
         vm.stopBroadcast();
