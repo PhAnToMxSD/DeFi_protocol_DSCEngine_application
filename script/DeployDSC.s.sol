@@ -14,9 +14,10 @@ contract DeployDSC is Script {
         address wbtc;
         uint256 key;
     }
+    
+    HelperConfig public helperConfig = new HelperConfig();
 
     function run() public returns (DSC dsc, DeCoin deCoin) {
-        HelperConfig helperConfig = new HelperConfig();
 
         (address wethPriceFeed, address wbtcPriceFeed, address weth, address wbtc, uint256 key) =
         helperConfig.activeNetworkConfig();
@@ -28,7 +29,7 @@ contract DeployDSC is Script {
         priceFeeds[1] = wbtcPriceFeed;
         vm.startBroadcast(key);
         deCoin = new DeCoin();
-        dsc = new DSC(address[](tokenCollateral), address[](priceFeeds), deCoin);
+        dsc = new DSC(tokenCollateral, priceFeeds, deCoin);
         vm.stopBroadcast();
         return (dsc, deCoin);
     }

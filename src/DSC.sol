@@ -32,6 +32,9 @@ contract DSC is ReentrancyGuard {
     error DSC__AmountMustBeLessThanOrEqualToBalance();
     error DSC__HealthFactorBelowThresholdForLiquidation();
     error DSC__HealthFactorNotImprovedAfterDebtPayed();
+    error DSC__BreaksHealthFactor(uint256 userHealthFactor);
+
+    event DepositedCollateral(address indexed user, address indexed tokenCollateral, uint256 indexed amount);
 
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address tokenCollateral => uint256 amountCollateral)) private
@@ -43,6 +46,8 @@ contract DSC is ReentrancyGuard {
     uint256 private constant PRECISION = 1e18;
     uint256 private constant LIQUIDATION_BONUS = 10;
     uint256 private constant MINIMUM_HEALTH_FACTOR = 1e18;
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+
 
 
     constructor(address[] memory tokenCollateral, address[] memory priceFeeds, DeCoin _deCoin) {
@@ -78,9 +83,12 @@ contract DSC is ReentrancyGuard {
     {
         //Note- tokenCollateral is the address of the collateral token (wETH or wBTC) and amount is the quantity of the collateral token being deposited.
         userToAmountCollateralForDifferentTokenCollateralAddresses[msg.sender][tokenCollateral] += amount;
-        bool success = IERC20(tokenCollateral).transfer(msg.sender, amount);
+        bool success = IERC20(tokenCollateral).transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert DSC__transferFailed();
+        }
+        else {
+            emit DepositedCollateral(msg.sender, tokenCollateral, amount);
         }
     }
 
@@ -201,5 +209,47 @@ contract DSC is ReentrancyGuard {
         if(!_checkHealthFactor(from)) {
             revert DSC__HealthFactorBelowThresholdAfterWithdrawingCollateral();
         }
+    }
+
+    function _calculateHealthFactor(
+        uint256 totalDscMinted,
+        uint256 collateralValueInUsd
+    )
+        internal
+        pure
+        returns (uint256)
+    {
+        if (totalDscMinted == 0) return type(uint256).max;
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+    }
+
+    function _revertIfHealthFactorIsBroken(address user) internal view {
+        uint256 userHealthFactor = _healthFactor(user);
+        if (userHealthFactor < MINIMUM_HEALTH_FACTOR) {
+            revert DSC__BreaksHealthFactor(userHealthFactor);
+        }
+    }
+
+    function _healthFactor(address user) private view returns (uint256) {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
+    }
+
+    function _getAccountInformation (address user) private view returns (uint256, uint256) {
+        uint256 totalDscMinted = amountOfDSCheld[user];
+        uint256 collateralValueInUsd = getUserCollateral(user);
+        return (totalDscMinted, collateralValueInUsd);
+    }
+
+    function calculateHealthFactor(
+        uint256 totalDscMinted,
+        uint256 collateralValueInUsd
+    )
+        external
+        pure
+        returns (uint256)
+    {
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
     }
 }
