@@ -7,7 +7,6 @@ import {DSC} from "src/DSC.sol";
 import {HelperConfig} from "script/helperConfig.s.sol";
 
 contract DeployDSC is Script {
-
     struct NetworkConfig {
         address wethPriceFeed;
         address wbtcPriceFeed;

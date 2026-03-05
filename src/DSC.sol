@@ -84,6 +84,7 @@ contract DSC is ReentrancyGuard {
     }
 
     function getUserCollateral(address user) public view returns (uint256) {
+        //Note- this function calculates the total value of the collateral deposited by the user in USD by fetching the price of each collateral token from the respective Chainlink price feeds and multiplying it by the amount of that token deposited by the user.
         uint256 totalCollateralValue;
         for (uint256 i = 0; i < s_tokenAddresses.length; i++) {
             uint256 amount = userToAmountCollateralForDifferentTokenCollateralAddresses[user][s_tokenAddresses[i]];
@@ -100,16 +101,19 @@ contract DSC is ReentrancyGuard {
     }
 
     function _getHealthFactor(uint256 totalCol) private view returns (uint256) {
+        //Note- this function calculates the health factor of the user
         uint256 xyz;
         xyz = ((totalCol * LIQUIDATION_THRESHOLD) / 100) * 1e18 / amountOfDSCheld[msg.sender];
         return xyz;
     }
 
     function _checkHealthFactor(address user) internal view returns (bool) {
+        //Note- this function checks if the health factor of the user is above a certain threshold (e.g., 1) to ensure that the user is not overcollateralized after minting new DSC tokens. If the health factor is below the threshold, the function reverts with an error. Otherwise, it returns true.
         uint256 totalCol = getUserCollateral(user);
         if (_getHealthFactor(totalCol) < 1) {
             revert DSC__HealthFactorBelowThreshold();
+        } else {
+            return true;
         }
-        return true;
     }
 }
