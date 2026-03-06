@@ -42,16 +42,16 @@ contract Handler is Test {
 
     function redeemCollateral(uint256 seed, uint256 amount) public {
         ERC20Mock tokenColAdd = tokenColRand(seed);
-        amount = bound (amount, 0, dsc.getUserCollateral(msg.sender));
+        amount = bound(amount, 0, dsc.getUserCollateral(msg.sender));
         vm.startPrank(msg.sender);
         dsc.redeemCollateral(address(tokenColAdd), amount);
         vm.stopPrank();
     }
 
-    function mintDSC (uint256 amount) public {
+    function mintDSC(uint256 amount) public {
         uint256 col = dsc.getUserCollateral(msg.sender);
         uint256 totaldsc = dsc.getAmountOfDSCheld(msg.sender);
-        uint256 maxc = col/2 - totaldsc; 
+        uint256 maxc = col / 2 - totaldsc;
         amount = bound(amount, 0, maxc);
         vm.startPrank(msg.sender);
         dsc.mint(amount);

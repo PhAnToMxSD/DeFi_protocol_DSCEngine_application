@@ -29,6 +29,4 @@ contract DSCTest is StdInvariant, Test {
 
         targetContract(address(handler));
     }
-
-    
 }

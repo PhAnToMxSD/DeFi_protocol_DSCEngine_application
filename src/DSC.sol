@@ -9,7 +9,6 @@ import {
 import {DeCoin} from "./DeCoin.sol";
 import {OracleLib} from "./OracleLib.sol";
 
-
 /**
  * @title DSC Engine
  * @author PhAnToMxSD
