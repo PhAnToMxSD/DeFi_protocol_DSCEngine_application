@@ -7,6 +7,8 @@ import {
     AggregatorV3Interface
 } from "lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {DeCoin} from "./DeCoin.sol";
+import {OracleLib} from "./OracleLib.sol";
+
 
 /**
  * @title DSC Engine
@@ -34,6 +36,8 @@ contract DSC is ReentrancyGuard {
     error DSC__HealthFactorNotImprovedAfterDebtPayed();
     error DSC__BreaksHealthFactor(uint256 userHealthFactor);
 
+    using OracleLib for AggregatorV3Interface;
+
     event DepositedCollateral(address indexed user, address indexed tokenCollateral, uint256 indexed amount);
 
     mapping(address token => address priceFeed) private s_priceFeeds;
@@ -47,8 +51,6 @@ contract DSC is ReentrancyGuard {
     uint256 private constant LIQUIDATION_BONUS = 10;
     uint256 private constant MINIMUM_HEALTH_FACTOR = 1e18;
     uint256 private constant LIQUIDATION_PRECISION = 100;
-
-
 
     constructor(address[] memory tokenCollateral, address[] memory priceFeeds, DeCoin _deCoin) {
         if (tokenCollateral.length != priceFeeds.length) {
@@ -86,16 +88,16 @@ contract DSC is ReentrancyGuard {
         bool success = IERC20(tokenCollateral).transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert DSC__transferFailed();
-        }
-        else {
+        } else {
             emit DepositedCollateral(msg.sender, tokenCollateral, amount);
         }
     }
 
     function depositCollateralAndMint(address tokenCollateral, uint256 collateralAmount, uint256 mintAmount) external {
         //Note- this function allows users to deposit collateral and mint DSC tokens in a single transaction. It first calls the depositCollateral function to handle the collateral deposit and then calls the mint function to mint the specified amount of DSC tokens for the user.
-        bytes memory payload = abi.encodeWithSelector(this.depositCollateral.selector, tokenCollateral, collateralAmount);
-        (bool success, ) = address(this).call(payload);
+        bytes memory payload =
+            abi.encodeWithSelector(this.depositCollateral.selector, tokenCollateral, collateralAmount);
+        (bool success,) = address(this).call(payload);
         if (!success) {
             revert DSC__transferFailed();
         }
@@ -143,29 +145,36 @@ contract DSC is ReentrancyGuard {
         }
     }
 
-    function redeemCollateral (address tokenCollateral, uint256 amount) public moreThanZero(amount) isAllowedToken(tokenCollateral) nonReentrant {
-        //Note- this function allows users to redeem their collateral only if the user has enough collateral to redeem. This will be checked by first simulating the transaction and then checking if user has enough collateral left. 
+    function redeemCollateral(address tokenCollateral, uint256 amount)
+        public
+        moreThanZero(amount)
+        isAllowedToken(tokenCollateral)
+        nonReentrant
+    {
+        //Note- this function allows users to redeem their collateral only if the user has enough collateral to redeem. This will be checked by first simulating the transaction and then checking if user has enough collateral left.
         _redeemCollateral(msg.sender, tokenCollateral, amount);
     }
 
-    function burnDSC (uint256 amount) public moreThanZero(amount) nonReentrant {
+    function burnDSC(uint256 amount) public moreThanZero(amount) nonReentrant {
         //Note- this function allows users to burn their DSC tokens to reduce their debt and improve their health factor. The user can only burn DSC tokens if they have enough DSC tokens to burn and if burning the specified amount of DSC tokens does not make their health factor fall below the threshold.
         _burnDSC(msg.sender, msg.sender, amount);
     }
 
-    function redeemCollateralAndBurnDSC (address tokenCollateral, uint256 collateralAmount, uint256 burnAmount) external {
+    function redeemCollateralAndBurnDSC(address tokenCollateral, uint256 collateralAmount, uint256 burnAmount)
+        external
+    {
         //Note- this function allows users to redeem their collateral and burn their DSC tokens in a single transaction. It first calls the redeemCollateral function to handle the collateral redemption and then calls the burnDSC function to burn the specified amount of DSC tokens for the user.
         _burnDSC(msg.sender, msg.sender, burnAmount);
         _redeemCollateral(msg.sender, tokenCollateral, collateralAmount);
     }
 
     function liquidate(address tokenCollateral, address user, uint256 amount) public nonReentrant moreThanZero(amount) {
-        //Note- this function allows anyone to liquidate an undercollateralized position. It checks if the user's health factor is below the threshold and if so, it allows the liquidator to redeem a portion of the user's collateral in exchange for burning a portion of the user's DSC tokens. The amount of collateral that can be redeemed and the amount of DSC tokens that need to be burned are determined based on the user's health factor and the liquidation threshold. Here, a user would be eligible for liquidation once the ratio of their collateral and their DSC falls below 2. 
+        //Note- this function allows anyone to liquidate an undercollateralized position. It checks if the user's health factor is below the threshold and if so, it allows the liquidator to redeem a portion of the user's collateral in exchange for burning a portion of the user's DSC tokens. The amount of collateral that can be redeemed and the amount of DSC tokens that need to be burned are determined based on the user's health factor and the liquidation threshold. Here, a user would be eligible for liquidation once the ratio of their collateral and their DSC falls below 2.
         uint256 totalCol = getUserCollateral(user);
         if (_getHealthFactor(totalCol) < MINIMUM_HEALTH_FACTOR) {
             revert DSC__HealthFactorBelowThresholdForLiquidation();
         }
-        uint256 tokenCollateralFromDebt = getAmountFromTokens (tokenCollateral, amount);
+        uint256 tokenCollateralFromDebt = getAmountFromTokens(tokenCollateral, amount);
         userToAmountCollateralForDifferentTokenCollateralAddresses[user][tokenCollateral] -= amount;
         uint256 bonus = (tokenCollateralFromDebt * LIQUIDATION_BONUS) / 100;
         bool success = IERC20(tokenCollateral).transfer(msg.sender, tokenCollateralFromDebt + bonus);
@@ -180,14 +189,15 @@ contract DSC is ReentrancyGuard {
         }
     }
 
-    function getAmountFromTokens (address tokenCollateral, uint256 amount) public view returns (uint256) {
+    function getAmountFromTokens(address tokenCollateral, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[tokenCollateral]);
         (, int256 price,,,) = priceFeed.latestRoundData();
 
         uint256 collateralAmount = (amount * 1e18) / ((uint256(price * 1e10) * LIQUIDATION_THRESHOLD) / 100);
         return collateralAmount;
     }
-    function _burnDSC (address from, address onBehalfOf, uint256 amount) internal {
+
+    function _burnDSC(address from, address onBehalfOf, uint256 amount) internal {
         if (amount <= 0) {
             revert DSC__AmountMustBeGreaterThanZero();
         }
@@ -196,25 +206,23 @@ contract DSC is ReentrancyGuard {
         }
         amountOfDSCheld[onBehalfOf] -= amount;
         DeCoin(deCoin).burnFrom(from, amount);
-        if(!_checkHealthFactor(onBehalfOf)) {
+        if (!_checkHealthFactor(onBehalfOf)) {
             revert DSC__HealthFactorBelowThresholdAfterWithdrawingCollateral();
         }
     }
-    function _redeemCollateral (address from, address tokenCollateral, uint256 amount) internal {
+
+    function _redeemCollateral(address from, address tokenCollateral, uint256 amount) internal {
         userToAmountCollateralForDifferentTokenCollateralAddresses[from][tokenCollateral] -= amount;
         bool success = IERC20(tokenCollateral).transfer(from, amount);
         if (!success) {
             revert DSC__transferFailed();
         }
-        if(!_checkHealthFactor(from)) {
+        if (!_checkHealthFactor(from)) {
             revert DSC__HealthFactorBelowThresholdAfterWithdrawingCollateral();
         }
     }
 
-    function _calculateHealthFactor(
-        uint256 totalDscMinted,
-        uint256 collateralValueInUsd
-    )
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
         internal
         pure
         returns (uint256)
@@ -236,20 +244,25 @@ contract DSC is ReentrancyGuard {
         return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
     }
 
-    function _getAccountInformation (address user) private view returns (uint256, uint256) {
+    function _getAccountInformation(address user) private view returns (uint256, uint256) {
         uint256 totalDscMinted = amountOfDSCheld[user];
         uint256 collateralValueInUsd = getUserCollateral(user);
         return (totalDscMinted, collateralValueInUsd);
     }
 
-    function calculateHealthFactor(
-        uint256 totalDscMinted,
-        uint256 collateralValueInUsd
-    )
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
         external
         pure
         returns (uint256)
     {
         return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
+    }
+
+    function getTokenAddresses() public view returns (address[] memory) {
+        return s_tokenAddresses;
+    }
+
+    function getAmountOfDSCheld(address user) public view returns (uint256) {
+        return amountOfDSCheld[user];
     }
 }

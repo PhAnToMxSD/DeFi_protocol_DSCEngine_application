@@ -8,7 +8,8 @@ import {ERC20Mock} from "test/Mocks/ERC20Mock.sol";
 contract HelperConfig is Script {
     NetworkConfig public activeNetworkConfig;
 
-    uint256 public constant DEFAULT_ANVIL_PRIVATE_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 public constant DEFAULT_ANVIL_PRIVATE_KEY =
+        0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     struct NetworkConfig {
         address wethPriceFeed;

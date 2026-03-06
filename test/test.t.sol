@@ -12,26 +12,24 @@ contract TestDSC is Test {
     DeCoin public deCoin;
     DSC public dsc;
     DeployDSC public deployer;
-    HelperConfig public helperConfig = new HelperConfig();
+    HelperConfig public helperConfig;
 
     address immutable USER = makeAddr("user");
 
     function setUp() public {
         deployer = new DeployDSC();
-        (dsc, deCoin) = deployer.run();
+        (dsc, deCoin, helperConfig) = deployer.run();
     }
 
     address[] tokenCollateral;
     address[] priceFeeds;
 
     function testConstructor() public {
-        (address wethPriceFeed, , address weth, address wbtc,) = helperConfig.activeNetworkConfig();
+        (address wethPriceFeed,, address weth, address wbtc,) = helperConfig.activeNetworkConfig();
         tokenCollateral.push(weth);
         tokenCollateral.push(wbtc);
         priceFeeds.push(wethPriceFeed);
-        vm.expectRevert( DSC.DSC__tokenAddrLenMustMatchPriceFeedLen.selector);
+        vm.expectRevert(DSC.DSC__tokenAddrLenMustMatchPriceFeedLen.selector);
         new DSC(tokenCollateral, priceFeeds, deCoin);
     }
-
-    
 }
